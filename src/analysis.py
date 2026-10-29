@@ -38,14 +38,14 @@ class Trial:
         return self.est is not None
 
 
-def run_experiment(map_img, localizer, n_trials=100, seed=0, crop=(200, 200),
+def run_experiment(uav_img, localizer, n_trials=100, seed=0, crop=(200, 200),
                    angle_range=(0.0, 360.0), scale_range=(1.0, 1.0), effects=None):
     rng = np.random.default_rng(seed)
     trials = []
     for _ in range(n_trials):
         angle = rng.uniform(*angle_range)
         scale = rng.uniform(*scale_range)
-        uav, gt = cutout_rotate(map_img, angle, scale, crop[0], crop[1], rng=rng)
+        uav, gt = cutout_rotate(uav_img, angle, scale, crop[0], crop[1], rng=rng)
         if effects is not None:
             uav = apply_uav_effects(uav, rng=rng, **effects)
 
@@ -64,19 +64,26 @@ def summarize(trials, success_px=5.0):
     found = ~np.isnan(errs)
     ok = found & (errs <= success_px)
     ok_errs = errs[ok]
+    found_errs = errs[found]
 
-    def stat(fn):
-        return float(fn(ok_errs)) if ok_errs.size else float("nan")
+    def stat(values, fn):
+        return float(fn(values)) if values.size else float("nan")
 
     return {
         "n": n,
         "found_rate": found.sum() / n * 100,
         "success_rate": ok.sum() / n * 100,
         "false_match_rate": (found & ~ok).sum() / n * 100,
-        "median_px": stat(np.median),
-        "p90_px": stat(lambda e: np.percentile(e, 90)),
-        "p95_px": stat(lambda e: np.percentile(e, 95)),
-        "rmse_px": stat(lambda e: np.sqrt(np.mean(e ** 2))),
+
+        "median_px": stat(ok_errs, np.median),
+        "p90_px": stat(ok_errs, lambda e: np.percentile(e, 90)),
+        "p95_px": stat(ok_errs, lambda e: np.percentile(e, 95)),
+        "rmse_px": stat(ok_errs, lambda e: np.sqrt(np.mean(e ** 2))),
+
+        "median_all_px": stat(found_errs, np.median),
+        "p90_all_px": stat(found_errs, lambda e: np.percentile(e, 90)),
+        "rmse_all_px": stat(found_errs, lambda e: np.sqrt(np.mean(e ** 2))),
+
         "success_px": success_px,
     }
 

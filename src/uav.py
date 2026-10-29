@@ -51,14 +51,11 @@ class Localization:
 
 class MapLocalizer:
     def __init__(self, map_img, preprocess="gray", ratio=0.75, min_inliers=10,
-                 ransac_thresh=3.0, model="similarity", scale_range=(0.4, 2.5)):
-        if model not in ("similarity", "homography"):
-            raise ValueError("model musi być 'similarity' albo 'homography'")
+                 ransac_thresh=3.0, scale_range=(0.4, 2.5)):
         self.preprocess = PREPROCESSORS[preprocess] if isinstance(preprocess, str) else preprocess
         self.ratio = ratio
         self.min_inliers = min_inliers
         self.ransac_thresh = ransac_thresh
-        self.model = model
         self.scale_range = scale_range
 
         self.sift = cv2.SIFT_create()
@@ -87,13 +84,11 @@ class MapLocalizer:
         src = np.float32([kp[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst = np.float32([self.kp_map[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-        if self.model == "similarity":
-            A, mask = cv2.estimateAffinePartial2D(
-                src, dst, method=cv2.RANSAC, ransacReprojThreshold=self.ransac_thresh,
-                maxIters=2000, confidence=0.995)
-            M = None if A is None else np.vstack([A, [0.0, 0.0, 1.0]])
-        else:
-            M, mask = cv2.findHomography(src, dst, cv2.USAC_MAGSAC, self.ransac_thresh)
+        A, mask = cv2.estimateAffinePartial2D(
+            src, dst, method=cv2.RANSAC, ransacReprojThreshold=self.ransac_thresh,
+            maxIters=2000, confidence=0.995)
+        M = None if A is None else np.vstack([A, [0.0, 0.0, 1.0]])
+
 
         if M is None or mask is None:
             return self._fail("nie udało się wyznaczyć transformacji", len(good))

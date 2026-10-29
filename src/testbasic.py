@@ -55,3 +55,4 @@ def test_same_seed_same_trials():
     a = run_experiment(map_img, localizer, n_trials=3, seed=5)
     b = run_experiment(map_img, localizer, n_trials=3, seed=5)
     assert [t.gt for t in a] == [t.gt for t in b]
+
