@@ -23,7 +23,7 @@ This project addresses these constraints by building an **autonomous, completely
 
 ##  Architecture & Pipeline
 
-'''
+```text
  [ Onboard UAV Camera ] 
           │
           ▼ (Real-time Aerial Image Stream)
@@ -36,9 +36,8 @@ This project addresses these constraints by building an **autonomous, completely
  [ Spatial Geo-Transformation ]
           │
           ▼
+```
  [ Absolute Position Output & INS Correction ]
-'''
-
 ### Key Technical Mechanics:
 * **Spatial Cropping & Georeferencing:** To enable high-performance matching without processing massive base maps in real time, reference tiles are cropped dynamically while preserving native Spatial Reference Systems (CRS).
 * **Advanced Error Handling & Validation:** Includes verification functions to handle edge cases—such as flying over low-feature terrain (water, dense forest, snow), detecting track deviations, and estimating vector direction relative to known geographical landmarks.
