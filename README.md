@@ -1,77 +1,217 @@
-# Visual Absolute Positioning System for UAVs in GNSS-Denied Environments
+# Vision-Based UAV Localization in GNSS-Denied Environments
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)
-![OpenCV](https://img.shields.io/badge/OpenCV-SIFT-green.svg)
-![Rasterio](https://img.shields.io/badge/Rasterio-GIS-orange.svg)
-![Domain](https://img.shields.io/badge/Domain-UAV%20%2F%20GNSS--Denied%20Navigation-red.svg)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![OpenCV](https://img.shields.io/badge/OpenCV-SIFT-green)
+![NumPy](https://img.shields.io/badge/NumPy-Numerical%20Computing-orange)
+![Status](https://img.shields.io/badge/Status-Research%20Prototype-yellow)
 
-##  Context & Motivation
+## Overview
 
-Unmanned Aerial Vehicles (UAVs) operating in modern tactical, industrial, or search-and-rescue scenarios face critical vulnerabilities due to **GNSS signal disruption, spoofing, and electronic warfare**. Traditional navigation reliance on GNSS creates single-point failure vectors. While alternative systems like Inertial Navigation Systems (INS) provide short-term autonomy, they suffer from cumulative drift over time. 
+This project explores image-based absolute localization for Unmanned Aerial Vehicles (UAVs) operating in GNSS-denied environments.
 
-This project addresses these constraints by building an **autonomous, completely passive visual navigation framework** that localizes the platform without relying on external radio signals or ground infrastructure.
+The core approach consists of matching aerial images captured by a UAV against a georeferenced reference map to estimate the position of the observed scene.
 
----
+The current implementation focuses on feature-based image matching using **SIFT (Scale-Invariant Feature Transform)**, **FLANN (Fast Library for Approximate Nearest Neighbors)** and **RANSAC (Random Sample Consensus)**.
 
-##  System Principles & Trade-offs
+The project also includes an experimental framework for evaluating localization accuracy under different image transformations and simulated environmental conditions.
 
-* **Passive Operational Security:** The system operates purely on onboard optical sensors—emitting no radio signature, making it fully immune to electronic warfare and signal jamming.
-* **Absolute Position Drift Reset:** By continuously matching live aerial frames against a georeferenced reference map, the system computes absolute coordinates (Latitude/Longitude or UTM) and resets INS cumulative drift.
-* **Reference Map Requirements:** Requires prior availability of a georeferenced satellite/orthophoto base map of the flight corridor, where localization performance directly correlates with map recency and terrain feature density.
+## Localization Pipeline
 
----
+The localization process consists of the following stages:
 
-##  Architecture & Pipeline
+1. **Image preprocessing** – conversion to grayscale or optional Sobel edge-based preprocessing.
+2. **Feature extraction** – detection of SIFT keypoints and computation of their descriptors in both the reference map and the UAV image.
+3. **Feature matching** – FLANN-based nearest-neighbor matching followed by Lowe's ratio test to filter ambiguous correspondences.
+4. **Geometric verification** – estimation of a similarity transformation using RANSAC and `cv2.estimateAffinePartial2D`.
+5. **Position estimation** – transformation of the UAV image center into reference map pixel coordinates.
 
+### Geometric Model
 
- [ Onboard UAV Camera ] 
-          │
-          ▼ (Real-time Aerial Image Stream)
- [ Dynamic Cropping & Multi-Scale Feature Detection ] <── (Georeferenced Reference Base Map)
-          │
-          ▼
- [ Robust Feature Matching & Homography ]
-          │
-          ▼
- [ Spatial Geo-Transformation ]
-          │
-          ▼
- [ Absolute Position Output & INS Correction ]
+The current implementation uses a 2D similarity transformation:
 
+- Translation
+- Rotation
+- Uniform scaling
 
-### Key Technical Mechanics:
-* **Spatial Cropping & Georeferencing:** To enable high-performance matching without processing massive base maps in real time, reference tiles are cropped dynamically while preserving native Spatial Reference Systems (CRS).
-* **Advanced Error Handling & Validation:** Includes verification functions to handle edge cases—such as flying over low-feature terrain (water, dense forest, snow), detecting track deviations, and estimating vector direction relative to known geographical landmarks.
+This model is used instead of a full affine transformation or projective homography to keep the geometric model consistent with the assumptions of the current experiments.
 
----
+The estimated transformation is validated using the number of RANSAC inliers and the estimated scale.
 
-##  Tech Stack
+## Experimental Framework
 
-* **Language:** **Python 3.10+** — Used for high-level prototyping, algorithm evaluation, and data pipeline design. *(Note: Performance-critical loops are targeted for future C++ refactoring).*
-* **Computer Vision:** **OpenCV** — High-performance image processing, keypoint detection (SIFT), and vector-matrix calculations.
-* **GIS & Spatial Operations:** **Rasterio** — Geospatial raster I/O, dynamic cropping, CRS transformations, and geo-coordinate resolution.
-* **Numerical Processing:** **NumPy & SciPy** — Multi-dimensional matrix transformations and spatial calculations.
+A dedicated experimental module is used to evaluate the localization algorithm against known ground-truth positions.
 
----
+Synthetic UAV images are generated by extracting and transforming regions of the reference map.
 
-##  Experimental & Evaluation Framework
+### Tested Parameters
 
-The repository incorporates a flexible testing module to benchmark algorithmic resilience under real-world conditions:
-1. **Multi-GSD & Resolution Testing:** Evaluates matching accuracy across varying Ground Sample Distance (GSD) ratios between onboard camera frames and reference maps.
-2. **Environmental & Noise Simulations:** Benchmarks matching confidence against synthetic noise, motion blur, rotation, and lighting changes.
-3. **Algorithm Comparison Pipeline:** Modular architecture allowing head-to-head performance evaluations of classic feature extractors against modern deep learning feature pipelines.
+- **Rotation:** random angles within a configurable range.
+- **Scale:** configurable image scaling.
+- **Brightness:** simulated brightness changes.
+- **Contrast:** simulated contrast variations.
+- **Noise:** additive Gaussian noise.
 
----
+### Evaluation Metrics
 
-##  Author & Engineering Thesis
+The experimental framework reports:
 
-* **Developer:** Michał Szyba
-* **Degree Program:** B.Sc. Eng. in Geoinformatics (Geoinformatyka), Cracow University of Technology (Politechnika Krakowska)
-* **Thesis Title:** *Absolute positioning system for unmanned aerial vehicles in GNSS-denied environments*
-* **Contact:** mszyba@onet.pl | [LinkedIn](https://www.linkedin.com/in/mszyba/) | [GitHub](https://github.com/michal-szyba)
+| Metric | Description |
+|---|---|
+| Found Rate | Percentage of trials where the algorithm returns a localization estimate. |
+| Success Rate | Percentage of trials with localization error below a specified threshold. |
+| False Match Rate | Percentage of trials where a localization is returned but exceeds the error threshold. |
+| Median Error | Median localization error for successful trials. |
+| P90 / P95 | 90th and 95th percentile localization errors for successful trials. |
+| RMSE | Root Mean Square Error for successful trials. |
 
----
+Localization error is calculated as the Euclidean distance between the estimated position and the ground-truth position, expressed in reference map pixels.
 
-## 📄 License
+The framework also provides visualizations of individual localization results, error distributions and spatial error patterns.
 
-Distributed under the MIT License. See `LICENSE` for more information.
+## Project Structure
+
+```text
+dyp_jup/
+│
+├── data/
+│   ├── georef_slv.png
+│   ├── georef_slv.pgw
+│   ├── georef_slv2.png
+│   └── georef_slv2.pgw
+│
+├── src/
+│   ├── __init__.py
+│   ├── uav.py
+│   ├── filter.py
+│   ├── analysis.py
+│   ├── visualization.py
+│   ├── main.py
+│   └── testbasic.py
+│
+├── requirements.txt
+└── README.md
+```
+
+### Main Modules
+
+- **`uav.py`** – SIFT-based feature extraction, FLANN matching, RANSAC-based transformation estimation and UAV image cropping utilities.
+- **`filter.py`** – image preprocessing methods and simulation of brightness, contrast and noise variations.
+- **`analysis.py`** – experimental trial generation, ground-truth comparison and localization performance metrics.
+- **`visualization.py`** – visualization of localization results, error distributions and spatial error maps.
+- **`main.py`** – main experimental execution script.
+- **`testbasic.py`** – unit tests for image transformations and localization functionality.
+
+## Installation
+
+Python 3.10 or newer is recommended.
+
+Clone the repository:
+
+```bash
+git clone https://github.com/michal-szyba/dyp_jup.git
+cd dyp_jup
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux / macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Install pytest to run the test suite:
+
+```bash
+pip install pytest
+```
+
+## Running Experiments
+
+The main script runs a series of localization experiments using the included reference imagery.
+
+The default experiment configuration includes:
+
+- 100 trials
+- Rotation range: 0–360 degrees
+- Scale range: 0.8–1.2
+- Random brightness, contrast and Gaussian noise variations
+- Localization success threshold: 5 pixels
+
+Run the experiment from the `src` directory:
+
+```bash
+cd src
+```
+
+Windows PowerShell:
+
+```powershell
+$env:PYTHONPATH=".."
+python -m src.main
+```
+
+Linux / macOS:
+
+```bash
+PYTHONPATH=.. python -m src.main
+```
+
+The script prints localization statistics and generates visualizations of the experimental results.
+
+## Running Tests
+
+From the repository root:
+
+```bash
+python -m pytest src/testbasic.py -v
+```
+
+## Current Scope and Limitations
+
+The current repository represents a research prototype focused on evaluating image-based localization algorithms.
+
+The following aspects are not yet implemented:
+
+- Direct processing of live UAV camera streams.
+- Conversion of estimated map pixel coordinates into geographic coordinates using the included World File metadata.
+- Integration with an Inertial Navigation System (INS).
+- Real-time onboard deployment and performance evaluation.
+- Evaluation using real UAV flight imagery and different Ground Sample Distances (GSD).
+- Advanced geometric verification and rejection of spatially ambiguous matches.
+
+The current experiments use synthetic image transformations generated from the reference imagery. Therefore, their results should not be interpreted as a complete evaluation under real flight conditions.
+
+## Author
+
+**Michał Szyba**
+
+B.Sc. Engineering student in Geoinformatics  
+Cracow University of Technology (Politechnika Krakowska)
+
+Bachelor's thesis:
+
+*Absolute Positioning System for Unmanned Aerial Vehicles in GNSS-Denied Environments*
+
+- GitHub: [michal-szyba](https://github.com/michal-szyba)
+- LinkedIn: [linkedin.com/in/mszyba](https://www.linkedin.com/in/mszyba)
+
+## License
+
+License not yet specified.
