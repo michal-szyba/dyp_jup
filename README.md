@@ -180,7 +180,7 @@ The script prints localization statistics and generates visualizations of the ex
 From the repository root:
 
 ```bash
-python -m pytest src/testbasic.py -v
+python -m pytest src/test_basic.py -v
 ```
 
 ## Current Scope and Limitations
